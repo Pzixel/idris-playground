@@ -40,11 +40,11 @@ replMain ds text =
         
         parseCommand : String -> Maybe Command
         parseCommand text = 
-            case span (/= ' ') (toLower text) of
+            case span (/= ' ') (trace text (toLower text)) of
                 ("add", args) => pure $ Add (ltrim args)
                 ("get", args) => Get <$> parseInteger args 
                 ("schema", args) => Schema <$> traverse parseType (split (== ' ') (ltrim args))
-                ("quit", _) => pure Quit
+                ("quit", _) => pure (trace "quitting" Quit)
                 _ => Nothing
 
         partial processCommand : Command -> DataStoreState String -> Maybe (String, DataStoreState String)
@@ -59,8 +59,8 @@ replMain ds text =
 
                 textToShow = fromMaybe "Out of range" maybeValue
             in pure (textToShow, Inited ds)
-        processCommand Schema _ = Nothing
-        processCommand Quit _ = Nothing
+        processCommand Schema _ = pure (trace "schema" ("schema accepted", Inited (MkData 0 [])))
+        processCommand Quit _ = trace "quitting2" Nothing
 
 
 covering main : IO ()
