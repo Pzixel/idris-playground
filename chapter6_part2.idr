@@ -40,18 +40,20 @@ replMain ds text =
         
         parseCommand : String -> Maybe Command
         parseCommand text = 
-            case span (/= ' ') (trace text (toLower text)) of
+            case span (/= ' ') (toLower text) of
                 ("add", args) => pure $ Add (ltrim args)
                 ("get", args) => Get <$> parseInteger args 
                 ("schema", args) => Schema <$> traverse parseType (split (== ' ') (ltrim args))
-                ("quit", _) => pure (trace "quitting" Quit)
+                ("quit", _) => pure Quit
                 _ => Nothing
 
-        partial processCommand : Command -> DataStoreState String -> Maybe (String, DataStoreState String)
+        processCommand : Command -> DataStoreState String -> Maybe (String, DataStoreState String)
+        processCommand (Add _) NotInited = pure ("Initialize schema first", NotInited)
         processCommand (Add s) (Inited ds) = 
             let newStore = addToStore ds s
                 stringIndex : String = cast (size ds)
             in pure ("ID " ++ stringIndex, Inited newStore)
+        processCommand (Get _) NotInited = pure ("Initialize schema first", NotInited)
         processCommand (Get i) (Inited ds) = 
             let maybeValue = do 
                     fin <- integerToFin i (Main.DataStore.size ds)
@@ -59,9 +61,9 @@ replMain ds text =
 
                 textToShow = fromMaybe "Out of range" maybeValue
             in pure (textToShow, Inited ds)
-        processCommand Schema _ = pure (trace "schema" ("schema accepted", Inited (MkData 0 [])))
-        processCommand Quit _ = trace "quitting2" Nothing
+        processCommand (Schema _) _ = pure ("schema accepted", Inited (MkData 0 []))
+        processCommand Quit _ = Nothing
 
 
-covering main : IO ()
+partial main : IO ()
 main = replWith NotInited ("\nCommand:") replMain
