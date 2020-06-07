@@ -18,6 +18,10 @@ data Command = Add String
     | Schema (List Type)
     | Quit
 
+VarArgs : List Type -> Type
+VarArgs [] = ()
+VarArgs (x :: xs) = (x, VarArgs xs) 
+
 addToStore : DataStore a -> a -> DataStore a
 addToStore (MkData size items') newitem = MkData _ (addToData items')
     where
@@ -26,7 +30,7 @@ addToStore (MkData size items') newitem = MkData _ (addToData items')
     addToData (item :: items') = item :: addToData items'
 
 
-replMain : DataStoreState String -> String -> Maybe (String, DataStoreState String)    
+replMain : DataStoreState a -> String -> Maybe (String, DataStoreState b)    
 replMain ds text = 
     let maybeCommand = parseCommand text 
     in case maybeCommand of 
@@ -47,7 +51,7 @@ replMain ds text =
                 ("quit", _) => pure Quit
                 _ => Nothing
 
-        processCommand : Command -> DataStoreState String -> Maybe (String, DataStoreState String)
+        processCommand : Command -> DataStoreState a -> Maybe (String, DataStoreState b)
         processCommand (Add _) NotInited = pure ("Initialize schema first", NotInited)
         processCommand (Add s) (Inited ds) = 
             let newStore = addToStore ds s
@@ -61,9 +65,13 @@ replMain ds text =
 
                 textToShow = fromMaybe "Out of range" maybeValue
             in pure (textToShow, Inited ds)
-        processCommand (Schema _) _ = pure ("schema accepted", Inited (MkData 0 []))
+        processCommand (Schema s) _ = 
+            let result : DataStore (VarArgs s) = MkData 0 []
+            in pure ("schema accepted", Inited result)
         processCommand Quit _ = Nothing
 
 
 partial main : IO ()
-main = replWith NotInited ("\nCommand:") replMain
+main =
+    let initialState : DataStoreState () = NotInited
+    in replWith initialState ("\nCommand:") replMain
