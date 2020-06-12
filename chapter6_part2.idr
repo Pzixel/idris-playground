@@ -30,11 +30,12 @@ addToStore (MkData schema size items') newitem = MkData schema _ (addToData item
     addToData [] = [newitem]
     addToData (item :: items') = item :: addToData items'
 
+data StoreIndex = All | Item Integer    
 
 data Command : Schema -> Type where
     SetSchema : (newschema : Schema) -> Command schema
     Add : SchemaType schema -> Command schema
-    Get : Integer -> Command schema
+    Get : StoreIndex -> Command schema
     Quit : Command schema   
 
 parsePrefix : (schema : Schema) -> String -> Maybe (SchemaType schema, String)
@@ -83,9 +84,10 @@ parseSchema input = do
 parseCommand : (schema : Schema) -> String -> String -> Maybe (Command schema)
 parseCommand schema "schema" rest = SetSchema <$> parseSchema rest
 parseCommand schema "add" rest = Add <$> parseBySchema schema rest
-parseCommand schema "get" rest = Get <$> parseInteger rest
-parseCommand schema "quit" "" = Just Quit
-parseCommand schema "exit" "" = Just Quit
+parseCommand schema "get" "" = pure $ Get All
+parseCommand schema "get" rest = (\i => Get (Item i)) <$> parseInteger rest
+parseCommand schema "quit" "" = pure Quit
+parseCommand schema "exit" "" = pure Quit
 parseCommand _ _ _ = Nothing
 
 parse : (schema : Schema) -> (input : String) -> Maybe (Command schema)
@@ -104,12 +106,16 @@ processCommand ds (SetSchema schema) = Just ("Ok", MkData schema _ [])
 processCommand ds (Add s) = 
     let newStore = addToStore ds s
         stringIndex : String = show (size ds)
-    in pure ("ID " ++ stringIndex, newStore)    
-processCommand ds (Get i) = 
+    in pure ("ID " ++ stringIndex, newStore)  
+processCommand ds (Get All) = 
+    let items = display <$> items ds
+        itemsWithPrefixes = zipWith (\a, b => (show a) ++ ": " ++ b) [0..length items] (toList items)
+        textToShow = unlines itemsWithPrefixes
+    in pure (textToShow, ds)
+processCommand ds (Get (Item i)) = 
     let maybeValue = do 
             fin <- integerToFin i (Main.DataStore.size ds)
             pure $ display $ Data.Vect.index fin (items ds)
-
         textToShow = fromMaybe "Out of range" maybeValue
     in pure (textToShow, ds)
 processCommand _ Quit = Nothing
