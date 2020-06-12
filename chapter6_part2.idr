@@ -35,48 +35,40 @@ data Command : Schema -> Type where
     Get : Integer -> Command schema
     Quit : Command schema   
 
-processCommand : (Command schema) -> DataStore -> Maybe (String, DataStore)
-processCommand (Add s) ds = 
+parseCommand : (schema : Schema) -> String -> String -> Maybe (Command schema)
+parseCommand schema "add" rest = Just (Add (?parseBySchema rest))
+parseCommand schema "get" rest = Get <$> parseInteger rest
+parseCommand schema "quit" "" = Just Quit
+parseCommand _ _ _ = Nothing
+
+parse : (schema : Schema) -> (input : String) -> Maybe (Command schema)
+parse schema input = 
+    let (cmd, args) = span (/= ' ') input
+    in parseCommand schema cmd (ltrim args)
+
+
+processCommand : (ds : DataStore) -> (Command (schema ds)) -> Maybe (String, DataStore)
+processCommand ds (Add s) = 
     let newStore = addToStore ds s
         stringIndex : String = show (size ds)
     in pure ("ID " ++ stringIndex ++ "\n", newStore)    
-processCommand (Get i) ds = 
+processCommand ds (Get i) = 
     let maybeValue = do 
             fin <- integerToFin i (Main.DataStore.size ds)
             pure $ ?display $ Data.Vect.index fin (items ds)
 
         textToShow = fromMaybe "Out of range" maybeValue
     in pure (textToShow, ds)
-processCommand Quit _ = Nothing
-
--- replMain : DataStore -> String -> Maybe (String, DataStore)    
--- replMain ds text = 
---     let maybeCommand = parseCommand text 
---     in case maybeCommand of 
---         Nothing => pure ("Unknown command", ds)
---         Just command => processCommand command ds
---     where 
---         parseCommand : String -> Maybe Command
---         parseCommand text = 
---             case span (/= ' ') (toLower text) of
---                 ("add", args) => pure $ Add (ltrim args)
---                 ("get", args) => Get <$> parseInteger args 
---                 ("quit", _) => pure Quit
---                 _ => Nothing
---         processCommand : Command -> DataStore -> Maybe (String, DataStore)
---         processCommand (Add s) ds = 
---             let newStore = addToStore ds s
---                 stringIndex : String = cast (size ds)
---             in pure ("ID " ++ stringIndex, newStore)
---         processCommand (Get i) ds = 
---             let maybeValue = do 
---                     fin <- integerToFin i (Main.DataStore.size ds)
---                     pure $ Data.Vect.index fin (items ds)
-
---                 textToShow = fromMaybe "Out of range" maybeValue
---             in pure (textToShow, ds)
---         processCommand Quit _ = Nothing
+processCommand _ Quit = Nothing
 
 
--- main : IO ()
--- main = replWith (MkData 0 []) ("\nCommand:") replMain
+replMain : DataStore -> String -> Maybe (String, DataStore)    
+replMain ds text = 
+    let maybeCommand = parse (schema ds) text
+    in case maybeCommand of
+        Nothing => pure ("Unknown command", ds)
+        Just command => processCommand ds command
+
+
+partial main : IO ()
+main = replWith (MkData SString _ []) ("\nCommand:") replMain
