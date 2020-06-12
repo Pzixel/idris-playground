@@ -8,9 +8,10 @@ import Control.IOExcept
 
 infixr 5 .+.
 
-data Schema = SString | SInt | (.+.) Schema Schema
+data Schema = SChar | SString | SInt | (.+.) Schema Schema
 
 SchemaType : Schema -> Type
+SchemaType SChar = Char
 SchemaType SString = String
 SchemaType SInt = Int
 SchemaType (x .+. y) = (SchemaType x, SchemaType y)
@@ -37,6 +38,13 @@ data Command : Schema -> Type where
     Quit : Command schema   
 
 parsePrefix : (schema : Schema) -> String -> Maybe (SchemaType schema, String)
+parsePrefix SChar input = 
+    let (openQuote, rest) = span (== '\'') input
+        (text, rest') = span (/= '\'') rest
+        (closeQuote, rest'') = span (== '\'') rest'
+    in case (openQuote, (unpack text), closeQuote) of 
+        ("\'", [char], "\'") => pure (char, ltrim rest'')
+        _ => Nothing
 parsePrefix SString input = 
     let (openQuote, rest) = span (== '"') input
         (text, rest') = span (/= '"') rest
@@ -58,6 +66,7 @@ parseBySchema schema input = do
     if tail == "" then pure res else Nothing
 
 parseSingleSchema : String -> Maybe Schema
+parseSingleSchema "Char" = pure SChar
 parseSingleSchema "Int" = pure SInt
 parseSingleSchema "String" = pure SString
 parseSingleSchema _ = Nothing
@@ -85,6 +94,7 @@ parse schema input =
     in parseCommand schema cmd (ltrim args)
 
 display : SchemaType schema -> String
+display {schema = SChar} item = show item
 display {schema = SString} item = show item
 display {schema = SInt} item = show item
 display {schema = (x .+. y)} (iteml, itemr) = display iteml ++ ", " ++ display itemr
