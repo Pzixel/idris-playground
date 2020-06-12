@@ -31,6 +31,7 @@ addToStore (MkData schema size items') newitem = MkData schema _ (addToData item
 
 
 data Command : Schema -> Type where
+    SetSchema : (newschema : Schema) -> Command schema
     Add : SchemaType schema -> Command schema
     Get : Integer -> Command schema
     Quit : Command schema   
@@ -56,10 +57,26 @@ parseBySchema schema input = do
     (res, tail) <- parsePrefix schema input
     if tail == "" then pure res else Nothing
 
+parseSingleSchema : String -> Maybe Schema
+parseSingleSchema "Int" = pure SInt
+parseSingleSchema "String" = pure SString
+parseSingleSchema _ = Nothing
+
+combineSchemas : List Schema -> Maybe Schema
+combineSchemas [] = Nothing 
+combineSchemas (x :: xs) = pure $ foldl (.+.) x xs
+
+parseSchema : String -> Maybe Schema       
+parseSchema input = do
+    types <- traverse parseSingleSchema (words input)
+    combineSchemas types
+
 parseCommand : (schema : Schema) -> String -> String -> Maybe (Command schema)
+parseCommand schema "schema" rest = SetSchema <$> parseSchema rest
 parseCommand schema "add" rest = Add <$> parseBySchema schema rest
 parseCommand schema "get" rest = Get <$> parseInteger rest
 parseCommand schema "quit" "" = Just Quit
+parseCommand schema "exit" "" = Just Quit
 parseCommand _ _ _ = Nothing
 
 parse : (schema : Schema) -> (input : String) -> Maybe (Command schema)
@@ -73,10 +90,11 @@ display {schema = SInt} item = show item
 display {schema = (x .+. y)} (iteml, itemr) = display iteml ++ ", " ++ display itemr
 
 processCommand : (ds : DataStore) -> (Command (schema ds)) -> Maybe (String, DataStore)
+processCommand ds (SetSchema schema) = Just ("Ok", MkData schema _ [])
 processCommand ds (Add s) = 
     let newStore = addToStore ds s
         stringIndex : String = show (size ds)
-    in pure ("ID " ++ stringIndex ++ "\n", newStore)    
+    in pure ("ID " ++ stringIndex, newStore)    
 processCommand ds (Get i) = 
     let maybeValue = do 
             fin <- integerToFin i (Main.DataStore.size ds)
@@ -96,4 +114,4 @@ replMain ds text =
 
 
 partial main : IO ()
-main = replWith (MkData (SString .+. SString .+. SInt) _ []) ("\nCommand:") replMain
+main = replWith (MkData (SString .+. SString .+. SInt) _ []) "\nCommand:" replMain
