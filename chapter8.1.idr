@@ -39,5 +39,12 @@ data ThreeEq : a -> b -> c -> Type where
 allSameS : (x, y, z : Nat) -> ThreeEq x y z -> ThreeEq (S x) (S y) (S z)
 allSameS x x x Refl3 = Refl3
 
+-------
+
+myReverse : Vect n elem -> Vect n elem
+myReverse [] = []
+myReverse (x :: xs) = myReverse xs ++ [x]
+
+
 main : IO ()
 main = print $ 10
