@@ -6,6 +6,17 @@ data Vect : Nat -> Type -> Type where
     Nil  : Vect Z a
     (::) : a -> Vect k a -> Vect (S k) a
 
+length : (xs : Vect len elem) -> Nat
+length [] = 0
+length (x::xs) = 1 + length xs    
+
+Show a => Show (Vect n a) where
+    show xs = "[" ++ show' xs ++ "]" where
+        show' : Vect n a -> String
+        show' Nil        = ""
+        show' (x :: Nil) = show x
+        show' (x :: xs)  = show x ++ ", " ++ show' xs    
+
 data Elem : a -> Vect k a -> Type where
     Here : Elem x (x :: xs)
     There : (later : Elem x xs) -> Elem x (y :: xs)
@@ -34,6 +45,9 @@ isElem value (x :: xs) = case decEq value x of
 
 data WordState : (guesses_remaining : Nat) -> (letters : Nat) -> Type where
     MkWordState : (word : String) -> (missing : Vect letters Char) -> WordState guesses_remaining letters
+
+getMissing : WordState guesses_remaining letters -> Vect letters Char    
+getMissing (MkWordState _ missing) = missing
 
 data Finished : Type where
     Lost : (game : WordState 0 (S letters)) -> Finished
@@ -83,9 +97,13 @@ game {guesses} {letters} (MkWordState word missing) = do
                 game l
         (Right r) => case letters of 
             Z => pure $ Won r
-            (S k) => game r
+            (S k) => do 
+                putStrLn $ "Correct. Letters left = " ++ (the String (show (getMissing r)))
+                game r
+
+-- getInitialGameState : (word : String) -> (S guesses : Nat) -> WordState (S guesses) (len word)
 
 covering main : IO ()
 main = do 
-    _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','d','a','b','r','a']) )
+    _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
     pure ()
