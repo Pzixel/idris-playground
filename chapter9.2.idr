@@ -1,4 +1,5 @@
 module Main
+import Data.Fin
 
 %default total
 
@@ -6,9 +7,30 @@ data Vect : Nat -> Type -> Type where
     Nil  : Vect Z a
     (::) : a -> Vect k a -> Vect (S k) a
 
+implementation Functor (Vect n) where
+    map f []        = []
+    map f (x::xs) = f x :: map f xs  
+
 length : (xs : Vect len elem) -> Nat
 length [] = 0
-length (x::xs) = 1 + length xs    
+length (x::xs) = 1 + length xs   
+
+index : Fin len -> Vect len elem -> elem
+index FZ     (x::xs) = x
+index (FS k) (x::xs) = index k xs
+
+
+fromList' : Vect len elem -> (l : List elem) -> Vect (length l + len) elem
+-- fromList' ys [] = ys
+-- fromList' {len} ys (x::xs) =
+--   rewrite (plusSuccRightSucc (length xs) len) ==>
+--           Vect (plus (length xs) (S len)) elem in
+--   fromList' (x::ys) xs
+
+fromList : (l : List elem) -> Vect (length l) elem
+-- fromList l =
+--   rewrite (sym $ plusZeroRightNeutral (length l)) in
+--   reverse $ fromList' [] l
 
 Show a => Show (Vect n a) where
     show xs = "[" ++ show' xs ++ "]" where
@@ -24,9 +46,9 @@ data Elem : a -> Vect k a -> Type where
 Uninhabited (Elem x []) where
     uninhabited _ impossible
 
-data Uniq : Vect k a -> Type where 
-    Empty : Uniq []
-    WithElement : (x : a) -> Uniq xs -> {auto prf : Not (Elem x xs)} -> Uniq (x :: xs)
+data Set : Vect k a -> Type where 
+    Empty : Set []
+    WithElement : Set xs -> Not (Elem x xs) -> Set (x :: xs)
 
 removeElem : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Vect n a
 removeElem x (x :: xs) Here = xs
@@ -52,8 +74,21 @@ notElm value elem = case isElem value elem of
     Yes prf => No $ (\f => f prf)
     No contra => Yes contra
 
+nonSetAppendIsNotSet : (contra : Set y -> Void) -> Set (x :: y) -> Void
+nonSetAppendIsNotSet contra (WithElement xs _) = contra xs
+
+appendDuplicateIsNotSet : (contra : (Elem x y -> Void) -> Void) -> Set (x :: y) -> Void
+appendDuplicateIsNotSet contra (WithElement _ x) = contra x
+
+isSet : DecEq a => (xs : Vect n a) -> Dec (Set xs)
+isSet [] = Yes Empty
+isSet (x :: y) = case (isSet y, notElm x y) of 
+    (Yes tailIsSet, Yes headIsUnique) => Yes $ WithElement tailIsSet headIsUnique
+    (No contra, _) => No (nonSetAppendIsNotSet contra)
+    (_, No contra) => No (appendDuplicateIsNotSet contra)
+
 data WordState : (guesses_remaining : Nat) -> (letters : Nat) -> Type where
-    MkWordState : (word : String) -> (missing : Vect letters Char) -> WordState guesses_remaining letters
+    MkWordState : (word : String) -> (missing : Vect letters (Fin (length word))) -> WordState guesses_remaining letters
 
 data Finished : Type where
     Lost : (game : WordState 0 (S letters)) -> Finished
@@ -76,10 +111,13 @@ isValidInput (_ :: _ :: _) = No uninhabited
 isValidString : (s : String) -> Dec (ValidInput (unpack s))    
 isValidString s = isValidInput (unpack s)
 
+mapChars : Vect n Char -> Vect m a -> Vect m Char
+
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
-processGuess letter (MkWordState word xs) = case isElem letter xs of
-    (Yes prf) => Right $ MkWordState word (removeElem_auto letter xs)
+processGuess letter (MkWordState word xs) = case isElem letter (mapChars (fromList (unpack word)) xs) of
+    (Yes prf) => Right $ MkWordState word (removeElem_auto (?findPos letter) xs)
     (No contra) => Left $ MkWordState word xs
+            
 
 covering readGuess : IO (x ** ValidInput x)
 readGuess = do 
@@ -111,5 +149,5 @@ game {guesses} {letters} st = do
 
 covering main : IO ()
 main = do 
-    _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
+    -- _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
     pure ()
