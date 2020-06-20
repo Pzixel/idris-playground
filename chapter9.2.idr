@@ -24,6 +24,10 @@ data Elem : a -> Vect k a -> Type where
 Uninhabited (Elem x []) where
     uninhabited _ impossible
 
+data Uniq : Vect k a -> Type where 
+    Empty : Uniq []
+    WithElement : (x : a) -> Uniq xs -> {auto prf : Not (Elem x xs)} -> Uniq (x :: xs)
+
 removeElem : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Vect n a
 removeElem x (x :: xs) Here = xs
 removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs later)
@@ -43,11 +47,13 @@ isElem value (x :: xs) = case decEq value x of
         (Yes x) => Yes $ There x
         (No contraXs) => No (notInHeadOrTail contraX contraXs)
 
+notElm : DecEq a => (x : a) -> (xs : Vect n a) -> Dec (Not (Elem x xs))
+notElm value elem = case isElem value elem of 
+    Yes prf => No $ (\f => f prf)
+    No contra => Yes contra
+
 data WordState : (guesses_remaining : Nat) -> (letters : Nat) -> Type where
     MkWordState : (word : String) -> (missing : Vect letters Char) -> WordState guesses_remaining letters
-
-getMissing : WordState guesses_remaining letters -> Vect letters Char    
-getMissing (MkWordState _ missing) = missing
 
 data Finished : Type where
     Lost : (game : WordState 0 (S letters)) -> Finished
@@ -98,7 +104,7 @@ game {guesses} {letters} st = do
         (Right r) => case letters of 
             Z => pure $ Won r
             (S k) => do 
-                putStrLn $ "Correct. Letters left = " ++ (the String (show (getMissing r)))
+                putStrLn $ "Correct. Letters left = "
                 game r
 
 -- getInitialGameState : (word : String) -> (S guesses : Nat) -> WordState (S guesses) (len word)
