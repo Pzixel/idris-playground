@@ -86,9 +86,9 @@ readGuess = do
             readGuess
 
 covering game : WordState (S guesses) (S letters) -> IO Finished
-game {guesses} {letters} (MkWordState word missing) = do
+game {guesses} {letters} st = do
     ([c] ** _) <- readGuess
-    let guess = processGuess c (the (WordState (S guesses) (S letters)) (MkWordState word missing))
+    let guess = processGuess c st
     case guess of 
         (Left l) => case guesses of 
             Z => pure $ Lost l
