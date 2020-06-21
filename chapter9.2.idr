@@ -114,10 +114,9 @@ isValidString s = isValidInput (unpack s)
 mapChars : Vect n Char -> Vect m a -> Vect m Char
 
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
-processGuess letter (MkWordState word xs) = case isElem letter (mapChars (fromList (unpack word)) xs) of
-    (Yes prf) => Right $ MkWordState word (removeElem_auto (?findPos letter) xs)
-    (No contra) => Left $ MkWordState word xs
-            
+-- processGuess letter (MkWordState word xs) = case isElem letter (mapChars (fromList (unpack word)) xs) of
+--     (Yes prf) => Right $ MkWordState word (removeElem (?findPos letter) xs prf)
+--     (No contra) => Left $ MkWordState word xs
 
 covering readGuess : IO (x ** ValidInput x)
 readGuess = do 
