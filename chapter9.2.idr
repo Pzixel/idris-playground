@@ -89,8 +89,8 @@ isValidInput (_ :: _ :: _) = No uninhabited
 isValidString : (s : String) -> Dec (ValidInput (unpack s))    
 isValidString s = isValidInput (unpack s)
 
-setWithoutElementIsSet : {prf : Elem letter xs} -> Set xs -> Set (removeElem_auto letter xs {prf})
-setWithoutElementIsSet x = ?setWithoutElementIsSet_rhs
+setWithoutElementIsSet : DecEq a => {xs : Vect _ a} -> {prf : Elem letter xs} -> Set xs -> Set (removeElem_auto letter xs {prf})
+setWithoutElementIsSet (WithElement y f) = ?setWithoutElementIsSet_rhs_1
 
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
 processGuess letter (MkWordState word xs {prf=isSetPrf}) = case isElem letter xs of
