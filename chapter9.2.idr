@@ -1,5 +1,4 @@
 module Main
-import Data.Fin
 
 %default total
 
@@ -7,30 +6,9 @@ data Vect : Nat -> Type -> Type where
     Nil  : Vect Z a
     (::) : a -> Vect k a -> Vect (S k) a
 
-implementation Functor (Vect n) where
-    map f []        = []
-    map f (x::xs) = f x :: map f xs  
-
 length : (xs : Vect len elem) -> Nat
 length [] = 0
-length (x::xs) = 1 + length xs   
-
-index : Fin len -> Vect len elem -> elem
-index FZ     (x::xs) = x
-index (FS k) (x::xs) = index k xs
-
-
-fromList' : Vect len elem -> (l : List elem) -> Vect (length l + len) elem
--- fromList' ys [] = ys
--- fromList' {len} ys (x::xs) =
---   rewrite (plusSuccRightSucc (length xs) len) ==>
---           Vect (plus (length xs) (S len)) elem in
---   fromList' (x::ys) xs
-
-fromList : (l : List elem) -> Vect (length l) elem
--- fromList l =
---   rewrite (sym $ plusZeroRightNeutral (length l)) in
---   reverse $ fromList' [] l
+length (x::xs) = 1 + length xs    
 
 Show a => Show (Vect n a) where
     show xs = "[" ++ show' xs ++ "]" where
@@ -88,7 +66,7 @@ isSet (x :: y) = case (isSet y, notElm x y) of
     (_, No contra) => No (appendDuplicateIsNotSet contra)
 
 data WordState : (guesses_remaining : Nat) -> (letters : Nat) -> Type where
-    MkWordState : (word : String) -> (missing : Vect letters (Fin (length word))) -> WordState guesses_remaining letters
+    MkWordState : (word : String) -> (missing : Vect letters Char) -> {auto prf : Set missing} -> WordState guesses_remaining letters
 
 data Finished : Type where
     Lost : (game : WordState 0 (S letters)) -> Finished
@@ -111,12 +89,13 @@ isValidInput (_ :: _ :: _) = No uninhabited
 isValidString : (s : String) -> Dec (ValidInput (unpack s))    
 isValidString s = isValidInput (unpack s)
 
-mapChars : Vect n Char -> Vect m a -> Vect m Char
+setWithoutElementIsSet : {prf : Elem letter xs} -> Set xs -> Set (removeElem_auto letter xs {prf})
+setWithoutElementIsSet x = ?setWithoutElementIsSet_rhs
 
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
--- processGuess letter (MkWordState word xs) = case isElem letter (mapChars (fromList (unpack word)) xs) of
---     (Yes prf) => Right $ MkWordState word (removeElem (?findPos letter) xs prf)
---     (No contra) => Left $ MkWordState word xs
+processGuess letter (MkWordState word xs {prf=isSetPrf}) = case isElem letter xs of
+    (Yes prf) => Right $ MkWordState word (removeElem_auto letter xs) {prf=(setWithoutElementIsSet isSetPrf)}
+    (No contra) => Left $ MkWordState word xs
 
 covering readGuess : IO (x ** ValidInput x)
 readGuess = do 
@@ -148,5 +127,5 @@ game {guesses} {letters} st = do
 
 covering main : IO ()
 main = do 
-    -- _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
+    --_ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
     pure ()
