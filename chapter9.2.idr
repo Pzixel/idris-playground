@@ -54,11 +54,27 @@ removeElem_auto value xs {prf} = removeElem value xs prf
 -- ------------------------------
 -- Main.lemma_rhs : Set (x :: ys)
 
+-- Idris: Holes
+-- Main.lemma
+--     k : Nat
+--     a : Type
+--     x : a
+--     ys : Vect k a
+--     isResultSet : Set ys
+--     value : a
+--     isNotElm : Elem value ys -> Void
+--     xs : Vect (S k) a
+--     later : Elem value xs
+--     isSet : Set xs
+--     f : Not (Elem x xs)
+-- ------------------------------------------------------------------
+-- Main.lemma : (\ys1 => (Set ys1, Elem value ys1 -> Void)) (x :: ys)
+
 removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** (Set ys, Not (Elem value ys)))
 removeElemFromSet value (value :: xs) Here (WithElement isSet f) = (xs ** (isSet, f))
 removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) =
      let (ys ** (isResultSet, isNotElm)) = removeElemFromSet value xs later isSet
-     in (x :: ys ** ?lemma)
+     in (value :: ys ** (WithElement isResultSet isNotElm, ?lemma2))
 
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
