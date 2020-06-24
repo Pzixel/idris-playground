@@ -35,19 +35,18 @@ removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs
 removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value xs} -> Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
 
--- notInTailThenNowhere : (isResultSet : Set ys) -> (isNotElm : Elem value ys -> Void) -> (x : a) -> (later : Elem value xs) -> (isSet : Set xs) -> (f : Not (Elem x xs)) -> Elem value (value :: ys) -> Void
--- notInTailThenNowhere isResultSet isNotElm x later isSet f y = ?notInTailThenNowhere_rhs
-
 -- isNotSetIfTailIsNotSet : DecEq a => {x : a} -> Not (a = x) -> (contra : Elem x xs -> Void) -> Elem x (y :: xs) -> Void
 -- isNotSetIfTailIsNotSet notEq contra Here = contra ?rhs
 -- isNotSetIfTailIsNotSet _ contra (There later) = contra later
 
+notInTailThenNowhere : (isResultSet : Set ys) -> (isNotElm : Elem value ys -> Void) -> (later : Elem value xs) -> (isSet : Set xs) -> (f : Not (Elem x xs)) -> Elem value (x :: ys) -> Void
+notInTailThenNowhere isResultSet isNotElm later isSet f x = ?notInTailThenNowhere_rhs
 
 removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** (Set ys, Not (Elem value ys)))
 removeElemFromSet value (value :: xs) Here (WithElement isSet f) = (xs ** (isSet, f))
 removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) =
      let (ys ** (isResultSet, isNotElm)) = removeElemFromSet value xs later isSet
-     in (x :: ys ** (WithElement isResultSet ?nonono, ?notInTailThenNowhere))
+     in (x :: ys ** (WithElement isResultSet ?nonono, notInTailThenNowhere isResultSet isNotElm later isSet f))
 
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
