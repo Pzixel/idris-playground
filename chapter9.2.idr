@@ -42,6 +42,7 @@ removeElem_auto value xs {prf} = removeElem value xs prf
 -- isNotSetIfTailIsNotSet notEq contra Here = contra ?rhs
 -- isNotSetIfTailIsNotSet _ contra (There later) = contra later
 
+
 removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** (Set ys, Not (Elem value ys)))
 removeElemFromSet value (value :: xs) Here (WithElement isSet f) = (xs ** (isSet, f))
 removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) =
