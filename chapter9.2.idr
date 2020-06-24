@@ -35,46 +35,13 @@ removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs
 removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value xs} -> Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
 
--- lemma : (x : a) -> (ys : Vect k a) -> (isResultSet : (\ys1 => Set ys1) ys) -> (later : Elem value xs) -> (isSet : Set xs) -> (f : Not (Elem x xs)) -> (\ys1 => Set ys1) (x :: ys)
--- lemma x ys isResultSet later isSet f = WithElement isResultSet f
-
--- Idris: Holes
--- Main.lemma_rhs
---     k : Nat
---     a : Type
---     x : a
---     xs : Vect k a
---     isSet : Set xs
---     f : Not (Elem x xs)
---     value : a
---     later : Elem value xs
---     k1 : Nat
---     ys : Vect k1 a
---     isResultSet : (\ys1 => Set ys1) ys
--- ------------------------------
--- Main.lemma_rhs : Set (x :: ys)
-
--- Idris: Holes
--- Main.lemma
---     k : Nat
---     a : Type
---     x : a
---     ys : Vect k a
---     isResultSet : Set ys
---     value : a
---     isNotElm : Elem value ys -> Void
---     xs : Vect (S k) a
---     later : Elem value xs
---     isSet : Set xs
---     f : Not (Elem x xs)
--- ------------------------------------------------------------------
--- Main.lemma : (\ys1 => (Set ys1, Elem value ys1 -> Void)) (x :: ys)
+notLastIfNotInTail : (contra : Elem set xs -> Void) -> Elem set (x :: xs) -> Void
 
 removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** (Set ys, Not (Elem value ys)))
 removeElemFromSet value (value :: xs) Here (WithElement isSet f) = (xs ** (isSet, f))
 removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) =
      let (ys ** (isResultSet, isNotElm)) = removeElemFromSet value xs later isSet
-     in (value :: ys ** (WithElement isResultSet isNotElm, ?lemma2))
+     in (value :: ys ** (WithElement isResultSet isNotElm, notLastIfNotInTail isNotElm))
 
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
