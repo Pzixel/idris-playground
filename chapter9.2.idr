@@ -36,6 +36,10 @@ removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value x
 removeElem_auto value xs {prf} = removeElem value xs prf
 
 removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** Set ys)
+removeElemFromSet value (value :: xs) Here (WithElement isSet _) = (xs ** isSet)
+removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) = 
+    let (ys ** isResultSet) = removeElemFromSet value xs later isSet
+    in (x :: ys ** ?rhs)
 
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
