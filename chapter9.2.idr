@@ -35,6 +35,8 @@ removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs
 removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value xs} -> Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
 
+removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** Set ys)
+
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
 notInHeadOrTail contraX contraXs (There later) = contraXs later
@@ -89,14 +91,12 @@ isValidInput (_ :: _ :: _) = No uninhabited
 isValidString : (s : String) -> Dec (ValidInput (unpack s))    
 isValidString s = isValidInput (unpack s)
 
-setWithoutElementIsSet : DecEq a => {xs : Vect _ a} -> {prf : Elem elm xs} -> Set xs -> Set (removeElem_auto elm xs {prf})
-setWithoutElementIsSet {elm} {xs} _ = case isSet (removeElem_auto elm xs) of 
-    (Yes prf) => prf
-    (No contra) => absurd $ contra (WithElement contra elm)
+-- setWithoutElementIsSet : DecEq a => {xs : Vect _ a} -> {prf : Elem elm xs} -> Set xs -> Set (removeElem_auto elm xs {prf})
+-- setWithoutElementIsSet {elm = elm} {xs = (x :: y)} (WithElement z f) = ?bar_1
 
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
 processGuess letter (MkWordState word xs {prf=isSetPrf}) = case isElem letter xs of
-    (Yes prf) => Right $ MkWordState word (removeElem_auto letter xs) {prf=(setWithoutElementIsSet isSetPrf)}
+    (Yes isElmPrf) => let (xs ** prof) = removeElemFromSet letter xs isElmPrf isSetPrf in Right $ MkWordState word xs {prf=prof}
     (No contra) => Left $ MkWordState word xs
 
 covering readGuess : IO (x ** ValidInput x)
