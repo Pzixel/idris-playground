@@ -24,29 +24,12 @@ data Elem : a -> Vect k a -> Type where
 Uninhabited (Elem x []) where
     uninhabited _ impossible
 
-data Set : Vect k a -> Type where 
-    Empty : Set []
-    WithElement : Set xs -> Not (Elem x xs) -> Set (x :: xs)
-
 removeElem : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Vect n a
 removeElem x (x :: xs) Here = xs
 removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs later)
 
 removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value xs} -> Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
-
-notInTailThenNowhere : (Elem value ys -> Void) -> Not (x = value) -> Elem value (x :: ys) -> Void
-notInTailThenNowhere {x} {value=x} isNotElm notEq Here = notEq Refl
-notInTailThenNowhere {x} {value} isNotElm notEq (There y) = isNotElm y
-
-notEq : (x : a) -> (isResultSet : Set ys) -> (isNotElm : Elem value ys -> Void) -> (later : Elem value xs) -> (isSet : Set xs) -> (f : Not (Elem x xs)) -> Not (x = value)
-notEq {value} x isResultSet isNotElm later isSet f = ?b
-
-removeElemFromSet : (value : a) -> (xs : Vect (S n) a) -> Elem value xs -> Set xs -> (ys : Vect n a ** (Set ys, Not (Elem value ys)))
-removeElemFromSet value (value :: xs) Here (WithElement isSet f) = (xs ** (isSet, f))
-removeElemFromSet {n = (S k)} value (x :: xs) (There later) (WithElement isSet f) =
-     let (ys ** (isResultSet, isNotElm)) = removeElemFromSet value xs later isSet
-     in (x :: ys ** (WithElement isResultSet ?nonono, notInTailThenNowhere isNotElm (notEq x isResultSet isNotElm later isSet f)))
 
 notInHeadOrTail : (contraX : (value = x) -> Void) -> (contraXs : Elem value xs -> Void) -> Elem value (x :: xs) -> Void
 notInHeadOrTail contraX contraXs Here = contraX Refl
@@ -60,26 +43,11 @@ isElem value (x :: xs) = case decEq value x of
         (Yes x) => Yes $ There x
         (No contraXs) => No (notInHeadOrTail contraX contraXs)
 
-notElm : DecEq a => (x : a) -> (xs : Vect n a) -> Dec (Not (Elem x xs))
-notElm value elem = case isElem value elem of 
-    Yes prf => No $ (\f => f prf)
-    No contra => Yes contra
-
-nonSetAppendIsNotSet : (contra : Set y -> Void) -> Set (x :: y) -> Void
-nonSetAppendIsNotSet contra (WithElement xs _) = contra xs
-
-appendDuplicateIsNotSet : (contra : (Elem x y -> Void) -> Void) -> Set (x :: y) -> Void
-appendDuplicateIsNotSet contra (WithElement _ x) = contra x
-
-isSet : DecEq a => (xs : Vect n a) -> Dec (Set xs)
-isSet [] = Yes Empty
-isSet (x :: y) = case (isSet y, notElm x y) of 
-    (Yes tailIsSet, Yes headIsUnique) => Yes $ WithElement tailIsSet headIsUnique
-    (No contra, _) => No (nonSetAppendIsNotSet contra)
-    (_, No contra) => No (appendDuplicateIsNotSet contra)
-
 data WordState : (guesses_remaining : Nat) -> (letters : Nat) -> Type where
-    MkWordState : (word : String) -> (missing : Vect letters Char) -> {auto prf : Set missing} -> WordState guesses_remaining letters
+    MkWordState : (word : String) -> (missing : Vect letters Char) -> WordState guesses_remaining letters
+
+getMissing : WordState guesses_remaining letters -> Vect letters Char    
+getMissing (MkWordState _ missing) = missing
 
 data Finished : Type where
     Lost : (game : WordState 0 (S letters)) -> Finished
@@ -102,12 +70,9 @@ isValidInput (_ :: _ :: _) = No uninhabited
 isValidString : (s : String) -> Dec (ValidInput (unpack s))    
 isValidString s = isValidInput (unpack s)
 
--- setWithoutElementIsSet : DecEq a => {xs : Vect _ a} -> {prf : Elem elm xs} -> Set xs -> Set (removeElem_auto elm xs {prf})
--- setWithoutElementIsSet {elm = elm} {xs = (x :: y)} (WithElement z f) = ?bar_1
-
 processGuess : (letter : Char) -> WordState (S guesses) (S letters) -> Either (WordState guesses (S letters)) (WordState (S guesses) letters)            
-processGuess letter (MkWordState word xs {prf=isSetPrf}) = case isElem letter xs of
-    (Yes isElmPrf) => let (xs ** (prof, _)) = removeElemFromSet letter xs isElmPrf isSetPrf in Right $ MkWordState word xs {prf=prof}
+processGuess letter (MkWordState word xs) = case isElem letter xs of
+    (Yes prf) => Right $ MkWordState word (removeElem_auto letter xs)
     (No contra) => Left $ MkWordState word xs
 
 covering readGuess : IO (x ** ValidInput x)
@@ -133,12 +98,12 @@ game {guesses} {letters} st = do
         (Right r) => case letters of 
             Z => pure $ Won r
             (S k) => do 
-                putStrLn $ "Correct. Letters left = "
+                putStrLn $ "Correct. Letters left = " ++ (the String (show (getMissing r)))
                 game r
 
 -- getInitialGameState : (word : String) -> (S guesses : Nat) -> WordState (S guesses) (len word)
 
 covering main : IO ()
 main = do 
-    --_ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
+    _ <- game $ the (WordState 15 _) (MkWordState "abrakadabra" (['a','b','r','a','c','a','d','a','b','r','a']) )
     pure ()
