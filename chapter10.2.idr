@@ -12,13 +12,14 @@ mergeSort xs with (splitRec xs)
     mergeSort [x] | SplitRecOne = [x]
     mergeSort (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSort lefts | lrec) (mergeSort rights | rrec) 
 
-covering equalSuffix : Eq a => List a -> List a -> List a
-equalSuffix xs ys with (snocList xs, snocList ys)
-    equalSuffix _ _ | (Empty, Empty) = []
-    equalSuffix _ _ | (Empty, Snoc y) = []
-    equalSuffix _ _ | (Snoc x, Empty) = []
-    equalSuffix (xs ++ [x]) (ys ++ [y]) | (Snoc revx, Snoc revy) = 
-        if x /= y then [] else (equalSuffix xs ys | (revx, revy)) ++ [x]
+equalSuffix : Eq a => List a -> List a -> List a
+equalSuffix xs ys with (snocList xs)
+    equalSuffix xs ys | recx with (snocList ys)
+        equalSuffix _ _ | Empty | Empty = []
+        equalSuffix _ _ | (Snoc _) | Empty = []
+        equalSuffix _ _ | Empty | (Snoc _) = []
+        equalSuffix (xs ++ [x]) (ys ++ [y]) | (Snoc recx) | (Snoc recy) = 
+            if x /= y then [] else (equalSuffix xs ys | recx | recy) ++ [x]
 
 mergeSortV : Ord a => Vect n a -> Vect n a
 mergeSortV xs with (splitRec xs)
