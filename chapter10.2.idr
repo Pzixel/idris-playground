@@ -2,6 +2,7 @@ module Main
 import Data.List.Views
 import Data.Vect
 import Data.Vect.Views
+import Data.Nat.Views
 
 %default total
 
@@ -23,7 +24,19 @@ mergeSortV : Ord a => Vect n a -> Vect n a
 mergeSortV xs with (splitRec xs)
     mergeSortV [] | SplitRecNil = []
     mergeSortV [x] | SplitRecOne = [x]
-    mergeSortV (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSortV lefts | lrec) (mergeSortV rights | rrec)             
+    mergeSortV (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSortV lefts | lrec) (mergeSortV rights | rrec) 
+    
+toBinary : Nat -> String
+toBinary k with (halfRec k) 
+    toBinary Z | HalfRecZ = "0"
+    toBinary (n + n) | (HalfRecEven rec) = (toBinary n | rec) ++ "0"
+    toBinary (S (n + n)) | (HalfRecOdd rec) = (toBinary n | rec) ++ "1"
+
+palindrome : List Char -> Bool    
+palindrome s with (vList s) 
+    palindrome [] | VNil = True
+    palindrome [x] | VOne = True
+    palindrome (x :: (xs ++ [y])) | (VCons rec) = x == y && (palindrome xs | rec)
 
 main : IO ()
 main = print $ mergeSort [1,4,5,2,3,4,7]
