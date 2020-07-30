@@ -210,32 +210,21 @@ namespace Vend
                             machineLoop
                     REFILL num => refill num
 
-
--- runStack : (stk : Vect inHeight Integer) -> StackCmd ty inHeight outHeight -> IO (ty, Vect outHeight Integer)
--- runStack stk (Push val) = pure ((), val :: stk)
--- runStack (val :: stk) Pop = pure (val, stk)
--- runStack (val :: stk) Top = pure (val, val :: stk)
--- runStack stk GetStr =
---     do
---         x <- getLine
---         pure (x, stk)
--- runStack stk (PutStr s) =
---     do
---         putStrLn s
---         pure ((), stk)
--- runStack stk (Pure x) = pure (x, stk)
--- runStack stk (cmd >>= next) =
---     do
---         (cmdRes, newStk) <- runStack stk cmd
---         runStack newStk (next cmdRes)
+    parseInput : String -> Maybe Input
+    parseInput "coin" = pure COIN
+    parseInput "vend" = pure VEND
+    parseInput "change" = pure CHANGE
+    parseInput x = case words x of
+        ["refill", amount] => if all isDigit (unpack amount) then pure (REFILL (cast x)) else Nothing
+        _ => Nothing
 
     runMachine : MachineCmd a s state2_fn -> IO a
-    runMachine InsertCoin = putStrLn $ "Coins in machine: " ++ (show 1)
-    runMachine Vend = ?runMachine_rhs_2
-    runMachine GetCoins = ?runMachine_rhs_3
-    runMachine (Refill bars) = ?runMachine_rhs_4
+    runMachine {s=(pounds, chocs)} InsertCoin = putStrLn $ "Coins in machine: " ++ (show $ S pounds)
+    runMachine Vend = putStrLn "Your chocolate, please"
+    runMachine GetCoins = putStrLn "Your coins, please"
+    runMachine (Refill bars) = putStrLn "Machine refilled"
     runMachine (Display x) = putStrLn x
-    runMachine GetInput = ?getinput
+    runMachine GetInput = parseInput <$> getLine
     runMachine (Pure res) = pure res
     runMachine (x >>= f) =
         do
@@ -249,4 +238,6 @@ namespace Vend
             resRe <- runMachine machine
             run fuel (f resRe)
 
-
+partial
+main : IO ()
+main = run forever (the (MachineIO (0, 0)) machineLoop)
