@@ -3,8 +3,8 @@ import Debug.Trace
 import Data.Vect;
 import Data.String
 
-record DataStore where 
-    constructor MkData 
+record DataStore where
+    constructor MkData
     size: Nat
     items: Vect size String
 data Command = Add String
@@ -19,27 +19,27 @@ addToStore (MkData size items') newitem = MkData _ (addToData items')
     addToData (item :: items') = item :: addToData items'
 
 
-replMain : DataStore -> String -> Maybe (String, DataStore)    
-replMain ds text = 
-    let maybeCommand = parseCommand text 
-    in case maybeCommand of 
+replMain : DataStore -> String -> Maybe (String, DataStore)
+replMain ds text =
+    let maybeCommand = parseCommand text
+    in case maybeCommand of
         Nothing => pure ("Unknown command", ds)
         Just command => processCommand command ds
-    where 
+    where
         parseCommand : String -> Maybe Command
-        parseCommand text = 
+        parseCommand text =
             case span (/= ' ') (toLower text) of
                 ("add", args) => pure $ Add (ltrim args)
-                ("get", args) => Get <$> parseInteger args 
+                ("get", args) => Get <$> parseInteger args
                 ("quit", _) => pure Quit
                 _ => Nothing
         processCommand : Command -> DataStore -> Maybe (String, DataStore)
-        processCommand (Add s) ds = 
+        processCommand (Add s) ds =
             let newStore = addToStore ds s
                 stringIndex : String = cast (size ds)
             in pure ("ID " ++ stringIndex, newStore)
-        processCommand (Get i) ds = 
-            let maybeValue = do 
+        processCommand (Get i) ds =
+            let maybeValue = do
                     fin <- integerToFin i (Main.DataStore.size ds)
                     pure $ Data.Vect.index fin (items ds)
 

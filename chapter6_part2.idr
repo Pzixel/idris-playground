@@ -16,7 +16,7 @@ SchemaType SString = String
 SchemaType SInt = Int
 SchemaType (x .+. y) = (SchemaType x, SchemaType y)
 
-record DataStore where 
+record DataStore where
     constructor MkData
     schema : Schema
     size: Nat
@@ -30,35 +30,35 @@ addToStore (MkData schema size items') newitem = MkData schema _ (addToData item
     addToData [] = [newitem]
     addToData (item :: items') = item :: addToData items'
 
-data StoreIndex = All | Item Integer    
+data StoreIndex = All | Item Integer
 
 data Command : Schema -> Type where
     SetSchema : (newschema : Schema) -> Command schema
     Add : SchemaType schema -> Command schema
     Get : StoreIndex -> Command schema
-    Quit : Command schema   
+    Quit : Command schema
 
 parsePrefix : (schema : Schema) -> String -> Maybe (SchemaType schema, String)
-parsePrefix SChar input = 
+parsePrefix SChar input =
     let (openQuote, rest) = span (== '\'') input
         (text, rest') = span (/= '\'') rest
         (closeQuote, rest'') = span (== '\'') rest'
-    in case (openQuote, (unpack text), closeQuote) of 
+    in case (openQuote, (unpack text), closeQuote) of
         ("\'", [char], "\'") => pure (char, ltrim rest'')
         _ => Nothing
-parsePrefix SString input = 
+parsePrefix SString input =
     let (openQuote, rest) = span (== '"') input
         (text, rest') = span (/= '"') rest
         (closeQuote, rest'') = span (== '"') rest'
-    in case (openQuote, closeQuote) of 
+    in case (openQuote, closeQuote) of
         ("\"", "\"") => pure (text, ltrim rest'')
         _ => Nothing
-parsePrefix SInt input = 
+parsePrefix SInt input =
     let (digits, rest) = span isDigit input
     in (\i => (i, ltrim rest)) <$> parseInteger digits
-parsePrefix (x .+. y) input = do 
+parsePrefix (x .+. y) input = do
     (rx, rest) <- parsePrefix x input
-    (ry, rest') <- parsePrefix y rest 
+    (ry, rest') <- parsePrefix y rest
     pure ((rx, ry), rest')
 
 parseBySchema : (schema : Schema) -> String -> Maybe (SchemaType schema)
@@ -73,10 +73,10 @@ parseSingleSchema "String" = pure SString
 parseSingleSchema _ = Nothing
 
 combineSchemas : List Schema -> Maybe Schema
-combineSchemas [] = Nothing 
+combineSchemas [] = Nothing
 combineSchemas (x :: xs) = pure $ foldl (.+.) x xs
 
-parseSchema : String -> Maybe Schema       
+parseSchema : String -> Maybe Schema
 parseSchema input = do
     types <- traverse parseSingleSchema (words input)
     combineSchemas types
@@ -91,7 +91,7 @@ parseCommand schema "exit" "" = pure Quit
 parseCommand _ _ _ = Nothing
 
 parse : (schema : Schema) -> (input : String) -> Maybe (Command schema)
-parse schema input = 
+parse schema input =
     let (cmd, args) = span (/= ' ') input
     in parseCommand schema cmd (ltrim args)
 
@@ -103,17 +103,17 @@ display {schema = (x .+. y)} (iteml, itemr) = display iteml ++ ", " ++ display i
 
 processCommand : (ds : DataStore) -> (Command (schema ds)) -> Maybe (String, DataStore)
 processCommand ds (SetSchema schema) = Just ("Ok", MkData schema _ [])
-processCommand ds (Add s) = 
+processCommand ds (Add s) =
     let newStore = addToStore ds s
         stringIndex : String = show (size ds)
-    in pure ("ID " ++ stringIndex, newStore)  
-processCommand ds (Get All) = 
+    in pure ("ID " ++ stringIndex, newStore)
+processCommand ds (Get All) =
     let items = display <$> items ds
         itemsWithPrefixes = zipWith (\a, b => (show a) ++ ": " ++ b) [0..length items] (toList items)
         textToShow = unlines itemsWithPrefixes
     in pure (textToShow, ds)
-processCommand ds (Get (Item i)) = 
-    let maybeValue = do 
+processCommand ds (Get (Item i)) =
+    let maybeValue = do
             fin <- integerToFin i (Main.DataStore.size ds)
             pure $ display $ Data.Vect.index fin (items ds)
         textToShow = fromMaybe "Out of range" maybeValue
@@ -121,8 +121,8 @@ processCommand ds (Get (Item i)) =
 processCommand _ Quit = Nothing
 
 
-replMain : DataStore -> String -> Maybe (String, DataStore)    
-replMain ds text = 
+replMain : DataStore -> String -> Maybe (String, DataStore)
+replMain ds text =
     let maybeCommand = parse (schema ds) text
     in case maybeCommand of
         Nothing => pure ("Unknown command", ds)

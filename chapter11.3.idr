@@ -20,8 +20,8 @@ data Command : Type -> Type where
 
 namespace CommandDo
     (>>=) : Command a -> (a -> Command b) -> Command b
-    (>>=) = Bind    
-    
+    (>>=) = Bind
+
 data ConsoleIO : Type -> Type where
     Quit : a -> ConsoleIO a
     Do : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
@@ -39,15 +39,15 @@ runCommand GetLine = getLine
 runCommand (ReadFile x) = readFile x
 runCommand (WriteFile fileName content) = writeFile fileName content
 runCommand (Pure val) = pure val
-runCommand (Bind c f) = 
-    do 
+runCommand (Bind c f) =
+    do
         res <- runCommand c
         runCommand (f res)
 
 run : Fuel -> ConsoleIO a -> IO (Maybe a)
 run _ (Quit val) = pure (Just val)
-run (More fuel) (Do c f) = 
-    do 
+run (More fuel) (Do c f) =
+    do
         res <- runCommand c
         run fuel (f res)
 run Dry p = pure Nothing
@@ -55,8 +55,8 @@ run Dry p = pure Nothing
 data Input = Answer Int | QuitCmd
 
 readInput : (prompt : String) -> Command Input
-readInput prompt = 
-    do 
+readInput prompt =
+    do
         PutStrLn prompt
         answer <- GetLine
         if toLower answer == "quit"
@@ -64,64 +64,64 @@ readInput prompt =
             else Pure (Answer (cast answer))
 
 quiz : Stream Int -> (score : Nat) -> (tries : Nat) -> ConsoleIO Nat
-quiz (num1 :: num2 :: nums) score tries = 
-    do 
+quiz (num1 :: num2 :: nums) score tries =
+    do
         let scoreString = show score ++ " / " ++ show tries
         PutStrLn ("Score so far: " ++ scoreString ++ "\n")
         input <- readInput (show num1 ++ "*" ++ show num2 ++ "? ")
         case input of
-            Answer answer => 
-                if (answer == num1 * num2) 
-                    then 
-                        do 
+            Answer answer =>
+                if (answer == num1 * num2)
+                    then
+                        do
                             PutStrLn "Correct!"
                             quiz nums (score + 1) (tries + 1)
-                    else 
-                        do 
+                    else
+                        do
                             PutStrLn ("Wrong, the answer is " ++ show (num1 * num2))
                             quiz nums score (tries + 1)
-            QuitCmd => 
-                do 
+            QuitCmd =>
+                do
                     PutStrLn $ "Final score: " ++ scoreString
                     Quit score
 
 shell : ConsoleIO ()
-shell = 
+shell =
     do
-        PutStrLn "enter a command"                     
+        PutStrLn "enter a command"
         command <- GetLine
-        case words (toLower command) of 
-            ["cat", filename] => 
-                do 
+        case words (toLower command) of
+            ["cat", filename] =>
+                do
                     res <- ReadFile filename
-                    case res of 
-                        (Left e) => 
-                            do 
+                    case res of
+                        (Left e) =>
+                            do
                                 PutStrLn $ "Unknown error: " ++ (show e)
                                 shell
-                        (Right content) => 
-                            do 
+                        (Right content) =>
+                            do
                                 PutStrLn content
                                 shell
-            ["copy", source, destination] => 
-                do 
+            ["copy", source, destination] =>
+                do
                     res <- ReadFile source
-                    case res of 
-                        (Left e) => 
-                            do 
+                    case res of
+                        (Left e) =>
+                            do
                                 PutStrLn $ "Unknown error while reading: " ++ (show e)
                                 shell
-                        (Right content) => 
-                            do 
+                        (Right content) =>
+                            do
                                 resWrite <- WriteFile destination content
-                                case resWrite of 
-                                    (Left e) => 
-                                        do 
+                                case resWrite of
+                                    (Left e) =>
+                                        do
                                             PutStrLn $ "Unknown error while writing: " ++ (show e)
                                             shell
                                     (Right _) => shell
             ("quit" :: _) => Quit ()
-            _ => 
+            _ =>
                 do
                     PutStrLn "Unknown command"
                     shell

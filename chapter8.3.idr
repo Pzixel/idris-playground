@@ -22,8 +22,8 @@ checkEqNat : (num1 : Nat) -> (num2 : Nat) -> Dec (num1 = num2)
 checkEqNat Z Z = Yes Refl
 checkEqNat Z (S _) = No zeroNotSuc
 checkEqNat (S k) Z = No sucNotZero
-checkEqNat (S k) (S j) = 
-    case checkEqNat k j of 
+checkEqNat (S k) (S j) =
+    case checkEqNat k j of
         Yes p => Yes $ cong p
         No contra => No $ noSucc contra
 
@@ -36,10 +36,10 @@ headUnequal contra prf = contra $ fst $ vectInjective prf
 tailUnequal : DecEq a => {xs : Vect n a} -> {ys : Vect n a} -> (contra : (xs = ys) -> Void) -> ((x :: xs) = (y :: ys)) -> Void
 tailUnequal contra prf = contra $ snd $ vectInjective prf
 
-DecEq a => DecEq (Vect n a) where 
-    decEq [] [] = Yes Refl 
-    decEq (x :: xs) (y :: ys) = case (decEq x y, decEq xs ys) of 
-        (Yes Refl, Yes Refl) => Yes Refl 
+DecEq a => DecEq (Vect n a) where
+    decEq [] [] = Yes Refl
+    decEq (x :: xs) (y :: ys) = case (decEq x y, decEq xs ys) of
+        (Yes Refl, Yes Refl) => Yes Refl
         (No contraX, _) => No $ headUnequal contraX
         (_, No contraY) => No $ tailUnequal contraY
 

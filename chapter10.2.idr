@@ -10,7 +10,7 @@ mergeSort : Ord a => List a -> List a
 mergeSort xs with (splitRec xs)
     mergeSort [] | SplitRecNil = []
     mergeSort [x] | SplitRecOne = [x]
-    mergeSort (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSort lefts | lrec) (mergeSort rights | rrec) 
+    mergeSort (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSort lefts | lrec) (mergeSort rights | rrec)
 
 equalSuffix : Eq a => List a -> List a -> List a
 equalSuffix xs ys with (snocList xs)
@@ -18,23 +18,23 @@ equalSuffix xs ys with (snocList xs)
         equalSuffix _ _ | Empty | Empty = []
         equalSuffix _ _ | (Snoc _) | Empty = []
         equalSuffix _ _ | Empty | (Snoc _) = []
-        equalSuffix (xs ++ [x]) (ys ++ [y]) | (Snoc recx) | (Snoc recy) = 
+        equalSuffix (xs ++ [x]) (ys ++ [y]) | (Snoc recx) | (Snoc recy) =
             if x /= y then [] else (equalSuffix xs ys | recx | recy) ++ [x]
 
 mergeSortV : Ord a => Vect n a -> Vect n a
 mergeSortV xs with (splitRec xs)
     mergeSortV [] | SplitRecNil = []
     mergeSortV [x] | SplitRecOne = [x]
-    mergeSortV (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSortV lefts | lrec) (mergeSortV rights | rrec) 
-    
+    mergeSortV (lefts ++ rights) | (SplitRecPair lrec rrec) = merge (mergeSortV lefts | lrec) (mergeSortV rights | rrec)
+
 toBinary : Nat -> String
-toBinary k with (halfRec k) 
+toBinary k with (halfRec k)
     toBinary Z | HalfRecZ = "0"
     toBinary (n + n) | (HalfRecEven rec) = (toBinary n | rec) ++ "0"
     toBinary (S (n + n)) | (HalfRecOdd rec) = (toBinary n | rec) ++ "1"
 
-palindrome : List Char -> Bool    
-palindrome s with (vList s) 
+palindrome : List Char -> Bool
+palindrome s with (vList s)
     palindrome [] | VNil = True
     palindrome [x] | VOne = True
     palindrome (x :: (xs ++ [y])) | (VCons rec) = x == y && (palindrome xs | rec)

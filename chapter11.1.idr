@@ -9,8 +9,8 @@ import Data.Bits
 
 data InfList : Type -> Type where
     (::) : (value : elem) -> Inf (InfList elem) -> InfList elem
- 
-    
+
+
 %name InfList xs, ys, zs
 
 countFrom : Integer -> InfList Integer
@@ -32,8 +32,8 @@ instance Show Face where
     show Heads = "Heads"
     show Tails = "Tails"
 
-isOdd : Int -> Bool 
-isOdd value = 
+isOdd : Int -> Bool
+isOdd value =
     let onePattern = bitAt (the (Fin 1) 0)
     in ((intToBits (cast value)) `Data.Bits.and` onePattern) == onePattern
 
@@ -42,4 +42,4 @@ coinFlips : Stream Int -> Stream Face
 coinFlips (value :: xs) = (if isOdd value then Heads else Tails) :: coinFlips xs
 
 main : IO ()
-main = print $ take 10 (coinFlips [1..]) 
+main = print $ take 10 (coinFlips [1..])

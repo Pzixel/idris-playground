@@ -14,9 +14,9 @@ adder : (Num t) => (numargs : Nat) -> VarArgs t (S numargs)
 adder Z acc = acc
 adder (S k) acc = \next => adder k (next + acc)
 
-data Format = 
+data Format =
       INumber Format
-    | FNumber Format  
+    | FNumber Format
     | Str Format
     | Ch Format
     | Lit String Format
@@ -50,8 +50,8 @@ reduceFormat (INumber x) = INumber (reduceFormat x)
 reduceFormat (FNumber x) = FNumber (reduceFormat x)
 reduceFormat (Ch x) = Ch (reduceFormat x)
 reduceFormat (Str x) = Str (reduceFormat x)
-reduceFormat (Lit x r) = 
-    case reduceFormat r of 
+reduceFormat (Lit x r) =
+    case reduceFormat r of
         Lit y t => Lit (x ++ y) t
         other => Lit x other
 reduceFormat End = End
