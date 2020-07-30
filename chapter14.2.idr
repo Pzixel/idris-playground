@@ -7,6 +7,12 @@ import Data.Bits
 
 %default total
 
+data Fuel = Dry | More (Lazy Fuel)
+
+partial
+forever : Fuel
+forever = More forever
+
 PIN : Type
 PIN = Vect 4 Char
 
@@ -88,3 +94,130 @@ runATM (x >>= f) =
     do
         x' <- runATM x
         runATM (f x')
+
+namespace securityshell
+    data Access = LoggedOut | LoggedIn
+    data PwdCheck = Correct | Incorrect
+    data ShellCmd : (ty : Type) -> Access -> (ty -> Access) -> Type where
+        Password : String -> ShellCmd PwdCheck LoggedOut
+                                                    (\check =>
+                                                        case check of
+                                                            Correct => LoggedIn
+                                                            Incorrect => LoggedOut
+                                                    )
+        Logout : ShellCmd () LoggedIn (const LoggedOut)
+        GetSecret : ShellCmd String LoggedIn (const LoggedIn)
+
+        PutStr : String -> ShellCmd () state (const state)
+        Pure : (res : ty) -> ShellCmd ty (state_fn res) state_fn
+        (>>=) : ShellCmd a state1 state2_fn ->((res : a) -> ShellCmd b (state2_fn res) state3_fn) ->ShellCmd b state1 state3_fn
+
+    session : ShellCmd () LoggedOut (const LoggedOut)
+    session =
+        do
+            Correct <- Password "wurzel"
+                | Incorrect => PutStr "Wrong password"
+            msg <- GetSecret
+            PutStr ("Secret code: " ++ show msg ++ "\n")
+            Logout
+
+    -- sessionBad : ShellCmd () LoggedOut (const LoggedOut)
+    -- sessionBad =
+    --     do
+    --         Password "wurzel"
+    --         msg <- GetSecret
+    --         PutStr ("Secret code: " ++ show msg ++ "\n")
+    --         Logout
+
+    -- noLogout : ShellCmd () LoggedOut (const LoggedOut)
+    -- noLogout =
+    --     do
+    --         Correct <- Password "wurzel"
+    --             | Incorrect => PutStr "Wrong password"
+    --         msg <- GetSecret
+    --         PutStr ("Secret code: " ++ show msg ++ "\n")
+
+namespace Vend
+    VendState : Type
+    VendState = (Nat, Nat)
+
+    data Input = COIN | VEND | CHANGE | REFILL Nat
+
+    data MachineCmd : (ty : Type) -> VendState -> (ty -> VendState) -> Type where
+        InsertCoin : MachineCmd () (pounds, chocs)     (const (S pounds, chocs))
+        Vend       : MachineCmd () (S pounds, S chocs) (const (pounds, chocs))
+        GetCoins   : MachineCmd () (pounds, chocs)     (const (Z, chocs))
+        Refill : (bars : Nat) ->
+                    MachineCmd () (Z, chocs)          (const (Z, bars + chocs))
+        Display : String -> MachineCmd () state (const state)
+        GetInput : MachineCmd (Maybe Input) state (const state)
+
+        Pure : (res : ty) -> MachineCmd ty (state_fn res) state_fn
+        (>>=) : MachineCmd a state1 state2_fn -> ((res : a) -> MachineCmd b (state2_fn res) state3_fn) -> MachineCmd b state1 state3_fn
+
+    data MachineIO : VendState -> Type where
+        Do : MachineCmd a state1 state2_fn -> ((res : a) -> Inf (MachineIO (state2_fn res))) -> MachineIO state1
+
+    namespace MachineDo
+        (>>=) : MachineCmd a state1 state2_fn -> ((res : a) -> Inf (MachineIO (state2_fn res))) -> MachineIO state1
+        (>>=) = Do
+
+    mutual
+        vend : MachineIO (pounds, chocs)
+        vend {pounds = S p} {chocs = S c} =
+            do
+                Vend
+                Display "Enjoy!"
+                machineLoop
+        vend {chocs = Z} =
+            do
+                Display "Out of stock!"
+                machineLoop
+        vend {pounds = Z} =
+            do
+                Display "Insert a coin"
+                machineLoop
+
+        refill : (num : Nat) -> MachineIO (pounds, chocs)
+        refill {pounds = Z} num =
+            do
+                Refill num
+                machineLoop
+        refill {pounds = S p} _ =
+            do
+                Display "Can't refill: Coins in machine"
+                machineLoop
+
+
+        machineLoop : MachineIO (pounds, chocs)
+        machineLoop =
+            do
+                Just x <- GetInput
+                    | Nothing =>
+                        do
+                            Display "Invalid input"
+                            machineLoop
+                case x of
+                    COIN =>
+                        do
+                            InsertCoin
+                            machineLoop
+                    VEND => vend
+                    CHANGE =>
+                        do
+                            GetCoins
+                            Display "Change returned"
+                            machineLoop
+                    REFILL num => refill num
+
+
+    runMachine : MachineCmd a s state2_fn -> IO a
+
+    run : Fuel -> MachineIO _ -> IO ()
+    run Dry _ = pure ()
+    run (More fuel) (Do machine f) =
+        do
+            resRe <- runMachine machine
+            run fuel (f resRe)
+
+
