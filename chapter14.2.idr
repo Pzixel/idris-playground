@@ -211,7 +211,36 @@ namespace Vend
                     REFILL num => refill num
 
 
+-- runStack : (stk : Vect inHeight Integer) -> StackCmd ty inHeight outHeight -> IO (ty, Vect outHeight Integer)
+-- runStack stk (Push val) = pure ((), val :: stk)
+-- runStack (val :: stk) Pop = pure (val, stk)
+-- runStack (val :: stk) Top = pure (val, val :: stk)
+-- runStack stk GetStr =
+--     do
+--         x <- getLine
+--         pure (x, stk)
+-- runStack stk (PutStr s) =
+--     do
+--         putStrLn s
+--         pure ((), stk)
+-- runStack stk (Pure x) = pure (x, stk)
+-- runStack stk (cmd >>= next) =
+--     do
+--         (cmdRes, newStk) <- runStack stk cmd
+--         runStack newStk (next cmdRes)
+
     runMachine : MachineCmd a s state2_fn -> IO a
+    runMachine InsertCoin = putStrLn $ "Coins in machine: " ++ (show 1)
+    runMachine Vend = ?runMachine_rhs_2
+    runMachine GetCoins = ?runMachine_rhs_3
+    runMachine (Refill bars) = ?runMachine_rhs_4
+    runMachine (Display x) = putStrLn x
+    runMachine GetInput = ?getinput
+    runMachine (Pure res) = pure res
+    runMachine (x >>= f) =
+        do
+            machineRes <- runMachine x
+            runMachine (f machineRes)
 
     run : Fuel -> MachineIO _ -> IO ()
     run Dry _ = pure ()
