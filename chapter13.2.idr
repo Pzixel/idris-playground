@@ -65,11 +65,69 @@ run (More fuel) stk (Do c f) =
         run fuel newStk (f res)
 run Dry stk p = pure ()
 
-data StkInput = Number Integer | Add
+data StkInput = Number Integer | Add | Subtract | Multiply | Negate | Discard | Duplicate
 
 strToInput : String -> Maybe StkInput
+strToInput "" = Nothing
+strToInput "add" = Just Add
+strToInput "subtract" = Just Subtract
+strToInput "multiply" = Just Multiply
+strToInput "negate" = Just Negate
+strToInput "discard" = Just Discard
+strToInput "duplicate" = Just Duplicate
+strToInput x = if all isDigit (unpack x) then Just (Number (cast x)) else Nothing
+
+
 mutual
-    tryAdd : StackIO height
+    duplicate : StackIO height
+    duplicate {height = Z} =
+        do
+            PutStr "Fewer elements than 1"
+            stackCalc
+    duplicate {height = (S k)} =
+        do
+            val1 <- Top
+            Push val1
+            PutStr ("Duplicated " ++ show val1)
+            stackCalc
+
+    discard : StackIO height
+    discard {height = Z} =
+        do
+            PutStr "Fewer elements than 1"
+            stackCalc
+    discard {height = (S k)} =
+        do
+            val1 <- Pop
+            PutStr ("Discarded " ++ show val1)
+            stackCalc
+
+    negate : StackIO height
+    negate {height = Z} =
+        do
+            PutStr "Fewer elements than 1"
+            stackCalc
+    negate {height = (S k)} =
+        do
+            val1 <- Pop
+            Push (-val1)
+            result <- Top
+            PutStr (show result)
+            stackCalc
+
+    tryBinary : (Integer -> Integer -> Integer) -> StackIO height
+    tryBinary op {height = (S (S k))} =
+        do
+            val1 <- Pop
+            val2 <- Pop
+            Push (val2 `op` val1)
+            result <- Top
+            PutStr (show result)
+            stackCalc
+    tryBinary _ =
+        do
+            PutStr "Fewer elements than 2"
+            stackCalc
 
     stackCalc : StackIO height
     stackCalc =
@@ -85,7 +143,12 @@ mutual
                     do
                         Push x
                         stackCalc
-                Just Add => tryAdd
+                Just Add => tryBinary (+)
+                Just Subtract => tryBinary (-)
+                Just Multiply => tryBinary (*)
+                Just Negate => negate
+                Just Discard => discard
+                Just Duplicate => duplicate
 
 partial
 main : IO ()
