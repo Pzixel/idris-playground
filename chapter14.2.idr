@@ -182,6 +182,7 @@ namespace Vend
         refill {pounds = Z} num =
             do
                 Refill num
+                Display $ "Added " ++ (show num) ++ " chocs into machine"
                 machineLoop
         refill {pounds = S p} _ =
             do
@@ -190,8 +191,9 @@ namespace Vend
 
 
         machineLoop : MachineIO (pounds, chocs)
-        machineLoop =
+        machineLoop {pounds} {chocs} =
             do
+                Display $ "Machine state: Coins in machine " ++ (show pounds) ++ " chocs " ++ (show chocs)
                 Just x <- GetInput
                     | Nothing =>
                         do
@@ -215,11 +217,11 @@ namespace Vend
     parseInput "vend" = pure VEND
     parseInput "change" = pure CHANGE
     parseInput x = case words x of
-        ["refill", amount] => if all isDigit (unpack amount) then pure (REFILL (cast x)) else Nothing
+        ["refill", amount] => if all isDigit (unpack amount) then pure (REFILL (cast amount)) else Nothing
         _ => Nothing
 
     runMachine : MachineCmd a s state2_fn -> IO a
-    runMachine {s=(pounds, chocs)} InsertCoin = putStrLn $ "Coins in machine: " ++ (show $ S pounds)
+    runMachine {s=(pounds, chocs)} InsertCoin = putStrLn "Coin inserted"
     runMachine Vend = putStrLn "Your chocolate, please"
     runMachine GetCoins = putStrLn "Your coins, please"
     runMachine (Refill bars) = putStrLn "Machine refilled"
