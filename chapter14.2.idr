@@ -142,9 +142,16 @@ namespace Vend
     VendState = (Nat, Nat)
 
     data Input = COIN | VEND | CHANGE | REFILL Nat
+    data CoinResult = Inserted | Rejected
 
     data MachineCmd : (ty : Type) -> VendState -> (ty -> VendState) -> Type where
-        InsertCoin : MachineCmd () (pounds, chocs)     (const (S pounds, chocs))
+        InsertCoin : MachineCmd CoinResult (pounds, chocs)
+                                                    (
+                                                        \res =>
+                                                            case res of
+                                                                Inserted => (S pounds, chocs)
+                                                                Rejected => (pounds, chocs)
+                                                    )
         Vend       : MachineCmd () (S pounds, S chocs) (const (pounds, chocs))
         GetCoins   : MachineCmd () (pounds, chocs)     (const (Z, chocs))
         Refill : (bars : Nat) ->
@@ -202,8 +209,16 @@ namespace Vend
                 case x of
                     COIN =>
                         do
-                            InsertCoin
-                            machineLoop
+                            res <- InsertCoin
+                            case res of
+                                Inserted =>
+                                    do
+                                        Display "Coin inserted"
+                                        machineLoop
+                                Rejected =>
+                                    do
+                                        Display "Bad coin"
+                                        machineLoop
                     VEND => vend
                     CHANGE =>
                         do
@@ -221,10 +236,11 @@ namespace Vend
         _ => Nothing
 
     runMachine : MachineCmd a s state2_fn -> IO a
-    runMachine {s=(pounds, chocs)} InsertCoin = putStrLn "Coin inserted"
-    runMachine Vend = putStrLn "Your chocolate, please"
-    runMachine GetCoins = putStrLn "Your coins, please"
-    runMachine (Refill bars) = putStrLn "Machine refilled"
+    runMachine {s=(pounds, chocs)} InsertCoin =
+        pure $ if pounds < 5 then Inserted else Rejected -- simple failure emulation
+    runMachine Vend = pure ()
+    runMachine GetCoins = pure ()
+    runMachine (Refill bars) = pure ()
     runMachine (Display x) = putStrLn x
     runMachine GetInput = parseInput <$> getLine
     runMachine (Pure res) = pure res
@@ -237,8 +253,8 @@ namespace Vend
     run Dry _ = pure ()
     run (More fuel) (Do machine f) =
         do
-            resRe <- runMachine machine
-            run fuel (f resRe)
+            machinRes <- runMachine machine
+            run fuel (f machinRes)
 
 partial
 main : IO ()
