@@ -102,23 +102,23 @@ removeElem {n = (S k)} value (x :: xs) (There later) = x :: (removeElem value xs
 removeElem_auto : (value : a) -> (xs : Vect (S n) a) -> {auto prf : Elem value xs} -> Vect n a
 removeElem_auto value xs {prf} = removeElem value xs prf
 
-runCmd : Fuel -> Game instate -> GameCmd ty instate outstate_fn ->IO (GameResult ty outstate_fn)
-runCmd fuel state (NewGame word) = ok () (InProgress (toUpper word) _ (fromList (letters word)))
-runCmd fuel (InProgress word _ _) Won = ok () (GameWon word)
-runCmd fuel (InProgress word _ _) Lost = ok () (GameLost word)
-runCmd fuel (InProgress word _ missing) (Guess c) =
+runCmd : {auto fuel : Fuel} -> Game instate -> GameCmd ty instate outstate_fn ->IO (GameResult ty outstate_fn)
+runCmd state (NewGame word) = ok () (InProgress (toUpper word) _ (fromList (letters word)))
+runCmd (InProgress word _ _) Won = ok () (GameWon word)
+runCmd (InProgress word _ _) Lost = ok () (GameLost word)
+runCmd (InProgress word _ missing) (Guess c) =
     case isElem c missing of
         Yes prf => ok Correct (InProgress word _ (removeElem_auto c missing))
         No contra => ok Incorrect (InProgress word _ missing)
-runCmd fuel state ShowState =
+runCmd state ShowState =
     do
         printLn state
         ok () state
-runCmd fuel state (Message x) =
+runCmd state (Message x) =
     do
         printLn x
         ok () state
-runCmd (More fuel) state ReadGuess =
+runCmd {fuel=More fuel} state ReadGuess =
     do
         putStr "Guess: "
         input <- getLine
@@ -128,20 +128,19 @@ runCmd (More fuel) state ReadGuess =
             _ =>
                 do
                     putStrLn "Invalid input"
-                    runCmd fuel state ReadGuess
-runCmd Dry state ReadGuess = pure OutOfFuel
-runCmd fuel state (Pure res) = ok res state
-runCmd fuel state (cmd >>= next) =
+                    runCmd state ReadGuess
+runCmd {fuel=Dry} state ReadGuess = pure OutOfFuel
+runCmd state (Pure res) = ok res state
+runCmd {fuel} state (cmd >>= next) =
     do
-        OK cmdRes newSt <- runCmd fuel state cmd
+        OK cmdRes newSt <- runCmd state cmd
             | OutOfFuel => pure OutOfFuel
-        runCmd fuel newSt (next cmdRes)
-
+        runCmd newSt (next cmdRes)
 run : Fuel -> Game instate -> GameLoop ty instate outstate_fn -> IO (GameResult ty outstate_fn)
 run Dry _ _ = pure OutOfFuel
 run (More fuel) st (cmd >>= next) =
     do
-        OK cmdRes newSt <- runCmd fuel st cmd
+        OK cmdRes newSt <- runCmd st cmd
             | OutOfFuel => pure OutOfFuel
         run fuel newSt (next cmdRes)
 run (More fuel) st Exit = ok () st
