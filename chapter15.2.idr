@@ -12,28 +12,48 @@ covering
 forever : Fuel
 forever = More forever
 
-data Process : Type -> Type where
-    Spawn : Process () -> Process (Maybe MessagePID)
-    Request : MessagePID -> Message -> Process (Maybe Nat)
-    Respond : ((msg : Message) -> Process Nat) -> Process (Maybe Message)
-    Action : IO a -> Process a
-    Loop : Inf (Process a) -> Process a
-    Pure : a -> Process a
-    (>>=) : Process a -> (a -> Process b) -> Process b
+data ProcState = NoRequest | Sent | Complete
 
-run : Fuel -> Process t -> IO (Maybe t)
+data Process : Type -> (in_state : ProcState) -> (out_state : ProcState) -> Type where
+    Request : MessagePID -> Message -> Process Nat st st
+    Respond : ((msg : Message) -> Process Nat NoRequest NoRequest) -> Process (Maybe Message) st Sent
+    Spawn : Process () NoRequest Complete -> Process (Maybe MessagePID) st st
+    Loop : Inf (Process a NoRequest Complete) -> Process a Sent Complete
+    Action : IO a -> Process a st st
+    Pure : a -> Process a st st
+    (>>=) : Process a st1 st2 -> (a -> Process b st2 st3) -> Process b st1 st3
+
+Service : Type -> Type
+Service a = Process a NoRequest Complete
+
+Client : Type -> Type
+Client a = Process a NoRequest NoRequest
+
+procAdder : Service ()
+procAdder =
+    do
+        Respond (
+            \msg =>
+                case msg of
+                    Add x y => Pure (x + y))
+        Loop procAdder
+
+procMain : Client ()
+procMain =
+    do
+        Just adder_id <- Spawn procAdder
+            | Nothing => Action (putStrLn "Spawn failed")
+        answer <- Request adder_id (Add 2 3)
+        Action (printLn answer)
+
+run : Fuel -> Process t in_state out_state -> IO (Maybe t)
 run Dry _ = pure Nothing
 run fuel (Request (MkMessage process) msg) =
     do
         Just chan <- connect process
-            | _ => pure (Just Nothing)
+            | _ => pure Nothing
         ok <- unsafeSend chan msg
-        if ok then
-            do
-                Just x <- unsafeRecv Nat chan
-                    | Nothing => pure (Just Nothing)
-                pure (Just (Just x))
-        else pure (Just Nothing)
+        if ok then unsafeRecv Nat chan else pure Nothing
 run fuel (Respond calc)
     =
         do
@@ -66,27 +86,8 @@ run fuel (act >>= next) =
             | Nothing => pure Nothing
         run fuel (next x)
 
-procAdder : Process ()
-procAdder =
-    do
-        Respond (
-            \msg =>
-                case msg of
-                    Add x y => Pure (x + y))
-        Loop procAdder
-
 covering
-procMain : Process ()
-procMain =
-    do
-        Just adder_id <- Spawn procAdder
-            | Nothing => Action (putStrLn "Spawn failed")
-        Just answer <- Request adder_id (Add 2 3)
-            | Nothing => Action (putStrLn "Request failed")
-        Action (printLn answer)
-
-covering
-runProc : Process () -> IO ()
+runProc : Client () -> IO ()
 runProc proc =
     do
         run forever proc
