@@ -149,6 +149,27 @@ covering
 forever : Fuel
 forever = More forever
 
+myDiv : Int -> (b : Int) -> {auto p: Not (b = 0)} -> Int
+
+runtimeDiv : IO ()
+runtimeDiv = do
+    aStr <- getLine
+    let a = the Int (cast aStr)
+    bStr <- getLine
+    let b = the Int (cast aStr)
+    case decEq b 0 of
+        (Yes prf) => putStrLn "Cannot divide by zero"
+        (No contra) => print $ myDiv a b {p=contra}
+
+mutual
+    even : Nat -> Bool
+    even Z = True
+    even (S k) = odd k
+
+    odd : Nat -> Bool
+    odd Z = False
+    odd (S k) = even k
+
 covering
 main : IO ()
 main =
