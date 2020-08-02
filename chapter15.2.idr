@@ -102,6 +102,28 @@ run fuel (act >>= next) =
             | Nothing => pure Nothing
         run fuel (next x)
 
+procList : Service ListType ()
+procList =
+    do
+        Respond
+            (
+                \msg =>
+                    case msg of
+                        (Length xs) => Pure $ length xs
+                        (Append xs ys) => Pure $ xs ++ ys
+            )
+        Loop procList
+
+procListMain : Client ()
+procListMain =
+    do
+        Just list <- Spawn procList
+            | Nothing => Action (putStrLn "Spawn failed")
+        len <- Request list (Length [1,2,3])
+        Action (printLn len)
+        app <- Request list (Append [1,2,3] [4,5,6])
+        Action (printLn app)
+
 covering
 runProc : Client () -> IO ()
 runProc proc =
