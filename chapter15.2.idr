@@ -5,7 +5,20 @@ import System.Concurrency.Channels
 %default total
 
 data Message = Add Nat Nat
-data MessagePID = MkMessage PID
+
+AdderType : Message -> Type
+AdderType (Add _ _) = Nat
+
+data ListAction : Type where
+    Length : List elem -> ListAction
+    Append : List elem -> List elem -> ListAction
+
+ListType : ListAction -> Type
+ListType (Length xs) = Nat
+ListType (Append {elem} xs ys) = List elem
+
+data MessagePID : (iface : reqType -> Type) -> Type where
+    MkMessage : PID -> MessagePID iface
 data Fuel = Dry | More (Lazy Fuel)
 
 covering
@@ -14,22 +27,25 @@ forever = More forever
 
 data ProcState = NoRequest | Sent | Complete
 
-data Process : Type -> (in_state : ProcState) -> (out_state : ProcState) -> Type where
-    Request : MessagePID -> Message -> Process Nat st st
-    Respond : ((msg : Message) -> Process Nat NoRequest NoRequest) -> Process (Maybe Message) st Sent
-    Spawn : Process () NoRequest Complete -> Process (Maybe MessagePID) st st
-    Loop : Inf (Process a NoRequest Complete) -> Process a Sent Complete
-    Action : IO a -> Process a st st
-    Pure : a -> Process a st st
-    (>>=) : Process a st1 st2 -> (a -> Process b st2 st3) -> Process b st1 st3
+data Process : (iface : reqType -> Type) -> Type -> (in_state : ProcState) -> (out_state : ProcState) -> Type where
+    Request : MessagePID service_iface -> (msg : service_reqType) -> Process iface (service_iface msg) st st
+    Respond : ((msg : reqType) -> Process iface (iface msg) NoRequest NoRequest) -> Process iface (Maybe reqType) st Sent
+    Spawn : Process service_iface () NoRequest Complete ->Process iface (Maybe (MessagePID service_iface)) st st
+    Loop : Inf (Process iface a NoRequest Complete) -> Process iface a Sent Complete
+    Action : IO a -> Process iface a st st
+    Pure : a -> Process iface a st st
+    (>>=) : Process iface a st1 st2 -> (a -> Process iface b st2 st3) -> Process iface b st1 st3
 
-Service : Type -> Type
-Service a = Process a NoRequest Complete
+NoRecv : Void -> Type
+NoRecv = void
+
+Service : (iface : reqType -> Type) -> Type -> Type
+Service iface a = Process iface a NoRequest Complete
 
 Client : Type -> Type
-Client a = Process a NoRequest NoRequest
+Client a = Process NoRecv a NoRequest NoRequest
 
-procAdder : Service ()
+procAdder : Service AdderType ()
 procAdder =
     do
         Respond (
@@ -46,20 +62,20 @@ procMain =
         answer <- Request adder_id (Add 2 3)
         Action (printLn answer)
 
-run : Fuel -> Process t in_state out_state -> IO (Maybe t)
+run : Fuel -> Process iface t in_state out_state -> IO (Maybe t)
 run Dry _ = pure Nothing
-run fuel (Request (MkMessage process) msg) =
+run fuel (Request (MkMessage {iface} process) msg) =
     do
         Just chan <- connect process
             | _ => pure Nothing
         ok <- unsafeSend chan msg
-        if ok then unsafeRecv Nat chan else pure Nothing
-run fuel (Respond calc)
+        if ok then unsafeRecv (iface msg) chan else pure Nothing
+run fuel (Respond {reqType} calc)
     =
         do
             Just sender <- listen 1
                 | Nothing => pure (Just Nothing)
-            Just msg <- unsafeRecv Message sender
+            Just msg <- unsafeRecv reqType sender
                 | Nothing => pure (Just Nothing)
             Just res <- run fuel (calc msg)
                 | Nothing => pure Nothing
